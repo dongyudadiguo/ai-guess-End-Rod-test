@@ -3,6 +3,8 @@ import csv
 import time
 import os
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from openai import OpenAI
 
@@ -270,7 +272,7 @@ def run_single_round(client, mcfg, config, round_num):
     }
 
 
-def run_model_tests(client, mcfg, config):
+def run_model_tests(client, mcfg, config, print_lock=None):
     test = config["test"]
     target = test["target_item"]
     target_cn = test.get("target_item_cn", target)
@@ -278,27 +280,44 @@ def run_model_tests(client, mcfg, config):
     max_q = test["max_questions"]
     model_name = mcfg["name"]
 
-    print("-" * 60)
-    print(f"  模型: {model_name}  ({mcfg['model']})")
-    print(f"  目标: {target} ({target_cn})  |  {rounds} 轮, 每轮最多 {max_q} 问")
-    print("-" * 60)
+    def pp(*args, **kwargs):
+        if print_lock:
+            with print_lock:
+                print(*args, **kwargs)
+        else:
+            print(*args, **kwargs)
 
-    all_results = []
-    for r in range(1, rounds + 1):
-        print(f"  [Round {r}/{rounds}]", end=" ", flush=True)
+    pp("-" * 60)
+    pp(f"  模型: {model_name}  ({mcfg['model']})")
+    pp(f"  目标: {target} ({target_cn})  |  {rounds} 轮, 每轮最多 {max_q} 问")
+    pp("-" * 60)
+
+    round_workers = mcfg.get("round_workers", rounds)
+
+    def run_round(r):
+        pp(f"  [{model_name}] [Round {r}/{rounds}]", end=" ", flush=True)
         result = run_single_round(client, mcfg, config, r)
-        all_results.append(result)
         status = "✓" if result["success"] else "✗"
         tokens = f"猜{result['total_guesser_tokens']}t+答{result['total_answerer_tokens']}t"
-        print(f"{status}  ({result['questions_asked']}问, {result['elapsed_seconds']}s, {tokens})  → {result['final_guess'][:40]}")
+        final = result['final_guess'] or "(无)"
+        pp(f"{status}  ({result['questions_asked']}问, {result['elapsed_seconds']}s, {tokens})  → {final[:40]}")
+        return result
+
+    all_results = []
+    with ThreadPoolExecutor(max_workers=round_workers) as worker:
+        futures = {worker.submit(run_round, r): r for r in range(1, rounds + 1)}
+        for future in as_completed(futures):
+            all_results.append(future.result())
+
+    all_results.sort(key=lambda x: x["round"])
 
     successes = sum(1 for r in all_results if r["success"])
     avg_q = sum(r["questions_asked"] for r in all_results) / rounds
     avg_t = sum(r["elapsed_seconds"] for r in all_results) / rounds
     avg_gt = sum(r["total_guesser_tokens"] for r in all_results) / rounds
     avg_at = sum(r["total_answerer_tokens"] for r in all_results) / rounds
-    print(f"  结果: {successes}/{rounds} ({successes/rounds*100:.1f}%)  |  平均 {avg_q:.1f}问  |  平均 {avg_t:.1f}s  |  平均猜{avg_gt:.0f}t+答{avg_at:.0f}t")
-    print()
+    pp(f"  [{model_name}] 结果: {successes}/{rounds} ({successes/rounds*100:.1f}%)  |  平均 {avg_q:.1f}问  |  平均 {avg_t:.1f}s  |  平均猜{avg_gt:.0f}t+答{avg_at:.0f}t")
+    pp()
 
     return {
         "model_name": model_name,
@@ -388,7 +407,7 @@ def generate_output(all_model_results, config, model_configs, output_path):
                 "elapsed_seconds": r["elapsed_seconds"],
                 "round_timestamp": r["round_timestamp"],
                 "error": r["error"],
-                "system_prompt_injected": r["system_prompt"],
+                "system_prompt_injected": r["system_prompt_injected"],
                 "total_guesser_tokens": r["total_guesser_tokens"],
                 "total_answerer_tokens": r["total_answerer_tokens"],
                 "qa_sequence": [],
@@ -448,24 +467,40 @@ def main():
 
     all_model_results = []
     model_configs = []
+    print_lock = threading.Lock()
 
-    for i, mcfg in enumerate(models):
+    def run_one_model(mcfg):
         api_key = resolve_api_key(mcfg["api_key"])
         if not api_key:
-            print(f"[跳过] {mcfg['name']}: API Key 未配置")
-            print()
-            continue
-
+            with print_lock:
+                print(f"[跳过] {mcfg['name']}: API Key 未配置")
+                print()
+            return None, None
         try:
             client = create_client(mcfg)
         except Exception as e:
-            print(f"[跳过] {mcfg['name']}: 创建客户端失败 - {e}")
-            print()
-            continue
+            with print_lock:
+                print(f"[跳过] {mcfg['name']}: 创建客户端失败 - {e}")
+                print()
+            return None, None
+        mr = run_model_tests(client, mcfg, config, print_lock)
+        return mr, mcfg
 
-        mr = run_model_tests(client, mcfg, config)
-        all_model_results.append(mr)
-        model_configs.append(mcfg)
+    with ThreadPoolExecutor(max_workers=len(models)) as executor:
+        futures = {executor.submit(run_one_model, mcfg): mcfg for mcfg in models}
+        for future in as_completed(futures):
+            mr, mcfg = future.result()
+            if mr is not None:
+                all_model_results.append(mr)
+                model_configs.append(mcfg)
+
+    model_order = {m["name"]: i for i, m in enumerate(models)}
+    paired = sorted(
+        zip(all_model_results, model_configs),
+        key=lambda x: model_order.get(x[0]["model_name"], 999),
+    )
+    all_model_results = [p[0] for p in paired]
+    model_configs = [p[1] for p in paired]
 
     if not all_model_results:
         print("错误: 没有成功运行的模型测试")

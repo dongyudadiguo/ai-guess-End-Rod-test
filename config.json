@@ -6,46 +6,21 @@
         {
             "name": "DeepSeek-V4-Pro",
             "base_url": "https://api.deepseek.com/v1",
-            "api_key": "sk-a18aa56d5c8f40c2bfdd8ec7d02b2f7a",
+            "api_key": "sk-xxx",
             "model": "deepseek-v4-pro",
             "temperature_guesser": 0.7,
             "temperature_answerer": 0.0,
+            "round_workers": null,
             "timeout_seconds": 60
         },
         {
             "name": "Mimo-V2.5-Pro",
             "base_url": "https://api.xiaomimimo.com/v1",
-            "api_key": "sk-cafgxmmso4hglfpi2cz75ivj5czb5b2ek0z803nrrvpcsi4k",
-            "model": "mimo-v2.5-pro",
+            "api_key": "sk-xxx",
+            "model": "mimo-v2.5",
             "temperature_guesser": 0.7,
             "temperature_answerer": 0.0,
-            "timeout_seconds": 60
-        },
-        {
-            "name": "Mercury-2",
-            "base_url": "https://api.inceptionlabs.ai/v1",
-            "api_key": "sk_53092ee0bb1716de9c1b94ca412765ad",
-            "model": "mercury-2",
-            "temperature_guesser": 0.7,
-            "temperature_answerer": 0.0,
-            "timeout_seconds": 60
-        },
-        {
-            "name": "Tencent-HY3-Preview",
-            "base_url": "https://wcode.net/api/gpt/v1",
-            "api_key": "sk-21689.DkWtLeEgLEeARgzKYOn9Pu6uTfxKfkhdFkplHdyn00ou98OH",
-            "model": "tencent/hy3-preview",
-            "temperature_guesser": 0.7,
-            "temperature_answerer": 0.0,
-            "timeout_seconds": 60
-        },
-        {
-            "name": "Step-3.5-Flash",
-            "base_url": "https://api.stepfun.com/v1",
-            "api_key": "2zc6rjZULJL2GVDGAJudrpuiMAXsJloZLOD0tq89VcS3dyZlsglaWZw8FfSIU7t4p",
-            "model": "step-3.5-flash",
-            "temperature_guesser": 0.7,
-            "temperature_answerer": 0.0,
+            "round_workers": null,
             "timeout_seconds": 60
         }
     ],
@@ -53,7 +28,7 @@
     "test": {
         "target_item": "End Rod",
         "target_item_cn": "末地烛",
-        "rounds": 10,
+        "rounds": 1,
         "max_questions": 32
     },
 
