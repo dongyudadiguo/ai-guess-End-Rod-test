@@ -6,6 +6,8 @@ import sys
 from datetime import datetime, timezone
 from openai import OpenAI
 
+sys.stdout.reconfigure(encoding='utf-8')
+
 
 def resolve_api_key(raw_key):
     if raw_key.startswith("env:"):
@@ -54,7 +56,6 @@ def ask_model(client, mcfg, messages, role_temp_key):
         model=mcfg["model"],
         messages=messages,
         temperature=mcfg.get(role_temp_key, 0.7),
-        max_tokens=mcfg.get("max_tokens", 512),
     )
     ts_end = datetime.now(timezone.utc).isoformat()
 
