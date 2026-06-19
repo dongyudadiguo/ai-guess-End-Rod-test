@@ -1,0 +1,52 @@
+{
+    "_说明": "猜物品智力测试 - 多模型对比配置文件",
+    "_用法": "在models数组中配置要对比的模型，然后运行: python run_test.py",
+
+    "models": [
+        {
+            "name": "GPT-4o",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "env:OPENAI_API_KEY",
+            "model": "gpt-4o",
+            "temperature_guesser": 0.7,
+            "temperature_answerer": 0.0,
+            "max_tokens": 512,
+            "timeout_seconds": 60
+        },
+        {
+            "name": "DeepSeek-V3",
+            "base_url": "https://api.deepseek.com/v1",
+            "api_key": "env:DEEPSEEK_API_KEY",
+            "model": "deepseek-chat",
+            "temperature_guesser": 0.7,
+            "temperature_answerer": 0.0,
+            "max_tokens": 512,
+            "timeout_seconds": 60
+        },
+        {
+            "name": "Qwen-Plus",
+            "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "api_key": "env:DASHSCOPE_API_KEY",
+            "model": "qwen-plus",
+            "temperature_guesser": 0.7,
+            "temperature_answerer": 0.0,
+            "max_tokens": 512,
+            "timeout_seconds": 60
+        }
+    ],
+
+    "test": {
+        "target_item": "End Rod",
+        "target_item_cn": "末地烛",
+        "rounds": 10,
+        "max_questions": 32
+    },
+
+    "prompts": {
+        "guesser_system": "You are playing a 20-questions style guessing game. Your task is to guess a specific Minecraft item/block by asking yes/no questions.\n\nRules:\n- Ask ONE yes/no question at a time.\n- I will only answer 'Yes' or 'No'.\n- You have a maximum of {max_questions} questions.\n- When you are confident, state your guess by saying: 'I GUESS: [exact item name]'\n- If you give up, say: 'I GIVE UP'\n\nStart by asking your first question.",
+
+        "answerer_system": "You are the answerer in a Minecraft guessing game. The item to guess is exactly: \"{target}\" ({target_cn}). You will be given a yes/no question about this item. Answer ONLY 'Yes' or 'No'. If the question is ambiguous, use your knowledge of the item to give the most accurate answer.",
+
+        "answerer_user_template": "The item is \"{target}\" ({target_cn}). Based on this, answer the following question with ONLY 'Yes' or 'No':\n\n{question}"
+    }
+}
